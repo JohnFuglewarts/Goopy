@@ -871,14 +871,21 @@
         });
 
         let pointerLockFailed = false;
+        let hasStarted = false;
+        let pointerLockTimeoutId = null;
+        const pointerLockHintText = "Click directly on the game window to capture the mouse.";
 
         const handlePointerLockError = () => {
             pointerLockFailed = true;
             if (!gameOver) {
-                overlay.classList.remove("hidden");
+                if (hasStarted) {
+                    overlay.classList.add("hidden");
+                } else {
+                    overlay.classList.remove("hidden");
+                }
                 reticle.style.display = "none";
                 if (tips) {
-                    tips.textContent = "Pointer lock was blocked. Click directly on the game window to capture the mouse.";
+                    tips.textContent = pointerLockHintText;
                 }
             }
         };
@@ -891,19 +898,37 @@
                 if (tips) {
                     tips.textContent = defaultTipsText;
                 }
-            } else if (!gameOver && pointerLockFailed) {
-                overlay.classList.remove("hidden");
+                clearTimeout(pointerLockTimeoutId);
+                overlay.classList.add("hidden");
+                reticle.style.display = "grid";
+            } else if (!gameOver) {
                 reticle.style.display = "none";
-                if (tips) {
-                    tips.textContent = "Pointer lock was blocked. Click directly on the game window to capture the mouse.";
+                if (hasStarted && !pointerLockFailed) {
+                    overlay.classList.remove("hidden");
+                    if (tips) {
+                        tips.textContent = defaultTipsText;
+                    }
+                } else if (hasStarted && pointerLockFailed && tips) {
+                    tips.textContent = pointerLockHintText;
                 }
             }
         });
 
         startButton.addEventListener("click", () => {
             pointerLockFailed = false;
+            hasStarted = true;
+            overlay.classList.add("hidden");
             renderer.domElement.focus();
             controls.lock();
+            clearTimeout(pointerLockTimeoutId);
+            pointerLockTimeoutId = setTimeout(() => {
+                if (!controls.isLocked && !gameOver) {
+                    pointerLockFailed = true;
+                    if (tips) {
+                        tips.textContent = pointerLockHintText;
+                    }
+                }
+            }, 200);
         });
 
         renderer.domElement.addEventListener("click", () => {
@@ -913,7 +938,6 @@
         });
 
         controls.addEventListener("lock", () => {
-            overlay.classList.add("hidden");
             reticle.style.display = "grid";
             pointerLockFailed = false;
             if (tips) {
@@ -923,7 +947,9 @@
 
         controls.addEventListener("unlock", () => {
             if (!gameOver) {
-                overlay.classList.remove("hidden");
+                if (!pointerLockFailed) {
+                    overlay.classList.remove("hidden");
+                }
                 reticle.style.display = "none";
                 if (tips) {
                     tips.textContent = defaultTipsText;
