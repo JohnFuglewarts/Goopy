@@ -3,9 +3,687 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YOUR COMPUTER WILL BLOW TF UP</title>
+    <title>Maze of the Pigman</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #050507;
+            --fg: #e9e7ff;
+            --accent: #ff7b54;
+            --accent-dark: #c14424;
+            --danger: #ff3864;
+            --success: #3cffc7;
+            --peanut: #f7d08a;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: radial-gradient(ellipse at top, #111425 0%, #040306 70%);
+            color: var(--fg);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        #game-container {
+            position: relative;
+            display: inline-block;
+            border-radius: 18px;
+            background: rgba(10, 10, 16, 0.85);
+            backdrop-filter: blur(4px);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.75);
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            background: #050509;
+        }
+
+        .hud {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            right: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        .hud-line {
+            display: flex;
+            justify-content: space-between;
+            font-size: 1rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+        }
+
+        .stamina-container {
+            height: 12px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            overflow: hidden;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.65);
+        }
+
+        #stamina-fill {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, var(--accent) 0%, var(--accent-dark) 100%);
+            transition: width 80ms linear, background 200ms ease;
+        }
+
+        #message-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            background: rgba(0, 0, 0, 0.85);
+            color: var(--fg);
+            padding: 24px;
+            text-align: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 200ms ease;
+        }
+
+        #message-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        #message-overlay h2 {
+            font-size: clamp(1.8rem, 3vw, 2.6rem);
+            letter-spacing: 0.18em;
+        }
+
+        #message-overlay p {
+            max-width: 420px;
+            line-height: 1.6;
+            opacity: 0.85;
+        }
+
+        #message-overlay button {
+            margin-top: 18px;
+            padding: 12px 28px;
+            border-radius: 999px;
+            border: none;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            font-weight: 600;
+            background: var(--accent);
+            color: #0e0d11;
+            cursor: pointer;
+            transition: transform 120ms ease, box-shadow 120ms ease;
+        }
+
+        #message-overlay button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(255, 123, 84, 0.35);
+        }
+
+        #instructions {
+            position: absolute;
+            bottom: 16px;
+            left: 16px;
+            right: 16px;
+            padding: 14px 18px;
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.45);
+            font-size: 0.9rem;
+            line-height: 1.4;
+            letter-spacing: 0.03em;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        #instructions strong {
+            color: var(--accent);
+        }
+
+        #jumpscare {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at center, rgba(255, 56, 100, 0.2) 0%, rgba(0, 0, 0, 0.95) 60%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(2.6rem, 5vw, 4rem);
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+            color: var(--danger);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 150ms ease;
+        }
+
+        #jumpscare.active {
+            opacity: 1;
+            animation: shake 480ms ease-in-out 1;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translate(0, 0); }
+            20% { transform: translate(-12px, 8px); }
+            40% { transform: translate(10px, -6px); }
+            60% { transform: translate(-8px, -4px); }
+            80% { transform: translate(6px, 10px); }
+        }
+
+        @media (max-width: 1024px) {
+            body {
+                padding: 20px;
+            }
+
+            canvas {
+                width: min(92vw, 640px);
+                height: auto;
+            }
+        }
+    </style>
 </head>
 <body>
-    <h1>poopity goopity</h1>
+    <div id="game-container">
+        <canvas id="gameCanvas" width="960" height="640"></canvas>
+        <div class="hud">
+            <div class="hud-line"><span>Peanuts</span><span id="peanut-count">0 / 9</span></div>
+            <div class="hud-line"><span>Stamina</span></div>
+            <div class="stamina-container"><div id="stamina-fill"></div></div>
+        </div>
+        <div id="instructions">
+            <strong>Escapes are rare.</strong>
+            <span>WASD / Arrow Keys to move, hold Shift to sprint. Collect nine glowing peanuts before the Pigman finds you. Vision is limited—stay alert.</span>
+            <span>Tip: Sprint wisely. Stamina takes time to recover. You're never alone in the dark.</span>
+        </div>
+        <div id="message-overlay" class="active">
+            <h2>Maze of the Pigman</h2>
+            <p>You wake up in a silent maze with something huge and hungry tracking your every step. Gather all nine peanuts to bait the exit before the Pigman reaches you.</p>
+            <button id="start-button">Enter the Maze</button>
+        </div>
+        <div id="jumpscare">RUN</div>
+    </div>
+
+    <audio id="ambience" loop preload="auto">
+        <source src="https://cdn.jsdelivr.net/gh/naptha/tiny-sfx/hum.ogg" type="audio/ogg">
+    </audio>
+    <audio id="peanut-sfx" preload="auto">
+        <source src="https://cdn.jsdelivr.net/gh/naptha/tiny-sfx/blip1.ogg" type="audio/ogg">
+    </audio>
+    <audio id="lose-sfx" preload="auto">
+        <source src="https://cdn.jsdelivr.net/gh/naptha/tiny-sfx/monster1.ogg" type="audio/ogg">
+    </audio>
+    <audio id="win-sfx" preload="auto">
+        <source src="https://cdn.jsdelivr.net/gh/naptha/tiny-sfx/success1.ogg" type="audio/ogg">
+    </audio>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const peanutCountEl = document.getElementById('peanut-count');
+        const staminaFill = document.getElementById('stamina-fill');
+        const overlay = document.getElementById('message-overlay');
+        const startButton = document.getElementById('start-button');
+        const jumpscare = document.getElementById('jumpscare');
+        const ambience = document.getElementById('ambience');
+        const peanutSfx = document.getElementById('peanut-sfx');
+        const loseSfx = document.getElementById('lose-sfx');
+        const winSfx = document.getElementById('win-sfx');
+
+        const tileSize = 32;
+        const cols = canvas.width / tileSize;
+        const rows = canvas.height / tileSize;
+
+        const maze = [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1],
+            [1,0,1,1,1,1,1,1,1,0,1,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,1,1,0,1],
+            [1,0,1,0,0,0,0,0,1,0,1,0,1,0,1,0,1,0,0,0,1,0,1,0,0,0,0,1,0,1],
+            [1,0,1,0,1,1,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,1,1,1,0,1,0,1],
+            [1,0,1,0,1,0,0,0,1,0,1,0,1,0,0,0,1,0,1,0,1,0,0,0,0,1,0,1,0,1],
+            [1,0,1,0,1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,0,1,1,1,1,0,1,0,1,0,1],
+            [1,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,1,0,1,0,0,0,0,1,0,1,0,1,0,1],
+            [1,0,1,1,1,0,1,0,1,1,1,1,1,0,1,0,1,0,1,1,1,1,0,1,0,1,0,1,0,1],
+            [1,0,0,0,1,0,1,0,0,0,0,0,1,0,1,0,0,0,0,0,0,1,0,1,0,1,0,0,0,1],
+            [1,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,1,1,1,1,0,1,0,1,0,1,1,1,0,1],
+            [1,0,0,0,1,0,0,0,0,0,1,0,1,0,0,0,0,0,0,1,0,1,0,0,0,0,0,1,0,1],
+            [1,0,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,0,1,0,1,1,1,1,1,0,1,0,1],
+            [1,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,1,0,1,0,1],
+            [1,0,1,0,1,1,1,0,1,1,1,1,1,1,1,1,0,1,0,1,1,1,1,1,0,1,0,1,0,1],
+            [1,0,0,0,1,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,1,0,1,0,1],
+            [1,1,1,0,1,0,1,1,1,0,1,1,1,1,0,1,1,1,1,1,1,1,0,1,0,1,0,1,0,1],
+            [1,0,0,0,1,0,1,0,0,0,1,0,0,1,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,1],
+            [1,0,1,1,1,0,1,0,1,1,1,0,1,1,0,1,1,1,1,1,0,1,0,1,1,1,1,1,0,1],
+            [1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ];
+
+        const peanuts = [
+            { x: 2, y: 1 },
+            { x: 12, y: 3 },
+            { x: 5, y: 9 },
+            { x: 21, y: 6 },
+            { x: 16, y: 14 },
+            { x: 8, y: 16 },
+            { x: 25, y: 4 },
+            { x: 26, y: 12 },
+            { x: 18, y: 18 }
+        ];
+
+        const wallsColor = '#1a1a24';
+        const floorColor = '#14131a';
+        const peanutGlow = 'rgba(247, 208, 138, 0.78)';
+        const pigColor = '#9c4a4a';
+        const pigEye = '#ffe5e5';
+        const playerColor = '#5ad0ff';
+
+        const keys = new Map();
+        let lastTime = 0;
+        let gameRunning = false;
+        let peanutsCollected = 0;
+
+        const player = {
+            x: tileSize * 2,
+            y: tileSize * 1,
+            radius: 12,
+            speed: 120,
+            sprintMultiplier: 1.85,
+            stamina: 100,
+            maxStamina: 100,
+            staminaDrain: 38,
+            staminaRegen: 22
+        };
+
+        const pigman = {
+            x: tileSize * 28,
+            y: tileSize * 18,
+            radius: 16,
+            baseSpeed: 90,
+            speedIncreasePerPeanut: 6,
+            jitterTimer: 0,
+            path: []
+        };
+
+        const directions = [
+            { x: 1, y: 0 },
+            { x: -1, y: 0 },
+            { x: 0, y: 1 },
+            { x: 0, y: -1 }
+        ];
+
+        function tileIsWalkable(tx, ty) {
+            if (tx < 0 || ty < 0 || tx >= cols || ty >= rows) return false;
+            return maze[ty][tx] === 0;
+        }
+
+        function positionToTile(x, y) {
+            return {
+                tx: Math.floor(x / tileSize),
+                ty: Math.floor(y / tileSize)
+            };
+        }
+
+        function bfs(start, goal) {
+            const queue = [start];
+            const visited = new Set([`${start.tx},${start.ty}`]);
+            const cameFrom = {};
+
+            while (queue.length) {
+                const current = queue.shift();
+                if (current.tx === goal.tx && current.ty === goal.ty) {
+                    const path = [];
+                    let nodeKey = `${goal.tx},${goal.ty}`;
+                    while (nodeKey !== `${start.tx},${start.ty}`) {
+                        const prev = cameFrom[nodeKey];
+                        if (!prev) break;
+                        path.push(prev.dir);
+                        nodeKey = `${prev.pos.tx},${prev.pos.ty}`;
+                    }
+                    return path.reverse();
+                }
+
+                for (const dir of directions) {
+                    const nxt = { tx: current.tx + dir.x, ty: current.ty + dir.y };
+                    const key = `${nxt.tx},${nxt.ty}`;
+                    if (!visited.has(key) && tileIsWalkable(nxt.tx, nxt.ty)) {
+                        visited.add(key);
+                        cameFrom[key] = { pos: current, dir };
+                        queue.push(nxt);
+                    }
+                }
+            }
+
+            return [];
+        }
+
+        function updatePigmanPath() {
+            const pigTile = positionToTile(pigman.x, pigman.y);
+            const playerTile = positionToTile(player.x, player.y);
+            pigman.path = bfs(pigTile, playerTile);
+        }
+
+        function distance(ax, ay, bx, by) {
+            const dx = ax - bx;
+            const dy = ay - by;
+            return Math.hypot(dx, dy);
+        }
+
+        function handleInput(dt) {
+            let dirX = 0;
+            let dirY = 0;
+
+            if (keys.get('ArrowUp') || keys.get('KeyW')) dirY -= 1;
+            if (keys.get('ArrowDown') || keys.get('KeyS')) dirY += 1;
+            if (keys.get('ArrowLeft') || keys.get('KeyA')) dirX -= 1;
+            if (keys.get('ArrowRight') || keys.get('KeyD')) dirX += 1;
+
+            const sprinting = (keys.get('ShiftLeft') || keys.get('ShiftRight')) && player.stamina > 0;
+            const speedMultiplier = sprinting ? player.sprintMultiplier : 1;
+            const moveSpeed = player.speed * speedMultiplier;
+
+            if (sprinting) {
+                player.stamina = Math.max(0, player.stamina - player.staminaDrain * dt);
+            } else {
+                player.stamina = Math.min(player.maxStamina, player.stamina + player.staminaRegen * dt);
+            }
+
+            staminaFill.style.width = `${(player.stamina / player.maxStamina) * 100}%`;
+            staminaFill.style.background = player.stamina < 18 ? 'linear-gradient(90deg, var(--danger), #5c0f23)' : 'linear-gradient(90deg, var(--accent), var(--accent-dark))';
+
+            if (dirX === 0 && dirY === 0) return;
+
+            const norm = Math.hypot(dirX, dirY) || 1;
+            dirX /= norm;
+            dirY /= norm;
+
+            const nextX = player.x + dirX * moveSpeed * dt;
+            const nextY = player.y + dirY * moveSpeed * dt;
+
+            const currentTile = positionToTile(player.x, player.y);
+            const nextTileX = positionToTile(nextX, player.y);
+            const nextTileY = positionToTile(player.x, nextY);
+            const nextTileDiag = positionToTile(nextX, nextY);
+
+            if (tileIsWalkable(nextTileX.tx, nextTileX.ty) && (currentTile.ty === nextTileX.ty || tileIsWalkable(currentTile.tx, nextTileX.ty))) {
+                player.x = nextX;
+            }
+
+            if (tileIsWalkable(nextTileY.tx, nextTileY.ty) && (currentTile.tx === nextTileY.tx || tileIsWalkable(nextTileY.tx, currentTile.ty))) {
+                player.y = nextY;
+            }
+
+            if (!tileIsWalkable(nextTileDiag.tx, nextTileDiag.ty)) {
+                player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
+                player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
+            }
+        }
+
+        function updatePigman(dt) {
+            pigman.jitterTimer -= dt;
+            if (pigman.jitterTimer <= 0) {
+                updatePigmanPath();
+                pigman.jitterTimer = Math.max(0.3, 1.2 - peanutsCollected * 0.06);
+            }
+
+            const speed = pigman.baseSpeed + pigman.speedIncreasePerPeanut * peanutsCollected;
+            if (pigman.path && pigman.path.length) {
+                const dir = pigman.path[0];
+                const targetX = Math.floor(pigman.x / tileSize) * tileSize + tileSize / 2 + dir.x * tileSize;
+                const targetY = Math.floor(pigman.y / tileSize) * tileSize + tileSize / 2 + dir.y * tileSize;
+                const vecX = targetX - pigman.x;
+                const vecY = targetY - pigman.y;
+                const dist = Math.hypot(vecX, vecY);
+                if (dist < 4) {
+                    pigman.path.shift();
+                } else {
+                    pigman.x += (vecX / dist) * speed * dt;
+                    pigman.y += (vecY / dist) * speed * dt;
+                }
+            } else {
+                const vecX = player.x - pigman.x;
+                const vecY = player.y - pigman.y;
+                const dist = Math.max(1, Math.hypot(vecX, vecY));
+                pigman.x += (vecX / dist) * speed * dt;
+                pigman.y += (vecY / dist) * speed * dt;
+            }
+        }
+
+        function checkPeanutCollection() {
+            const { tx, ty } = positionToTile(player.x, player.y);
+            for (let i = peanuts.length - 1; i >= 0; i--) {
+                if (peanuts[i].x === tx && peanuts[i].y === ty) {
+                    peanuts.splice(i, 1);
+                    peanutsCollected += 1;
+                    peanutSfx.currentTime = 0;
+                    peanutSfx.play().catch(() => {});
+                    updatePeanutHud();
+                }
+            }
+
+            if (peanutsCollected >= 9) {
+                triggerWin();
+            }
+        }
+
+        function updatePeanutHud() {
+            peanutCountEl.textContent = `${peanutsCollected} / 9`;
+        }
+
+        function triggerLose() {
+            gameRunning = false;
+            loseSfx.currentTime = 0;
+            loseSfx.play().catch(() => {});
+            ambience.pause();
+            jumpscare.classList.add('active');
+            overlay.innerHTML = `
+                <h2>Devoured by the Pigman</h2>
+                <p>Your footsteps stopped echoing. The maze keeps your secrets now.</p>
+                <button id="retry-button">Try Again</button>
+            `;
+            overlay.classList.add('active');
+            const retryButton = document.getElementById('retry-button');
+            retryButton.addEventListener('click', resetGame, { once: true });
+        }
+
+        function triggerWin() {
+            gameRunning = false;
+            winSfx.currentTime = 0;
+            winSfx.play().catch(() => {});
+            ambience.pause();
+            overlay.innerHTML = `
+                <h2>You Escaped</h2>
+                <p>The Pigman roars from behind the sealed gate. The peanuts bought you enough time.</p>
+                <button id="retry-button">Go Back In</button>
+            `;
+            overlay.classList.add('active');
+            const retryButton = document.getElementById('retry-button');
+            retryButton.addEventListener('click', resetGame, { once: true });
+        }
+
+        function resetGame() {
+            overlay.classList.remove('active');
+            jumpscare.classList.remove('active');
+            peanuts.splice(0, peanuts.length, 
+                { x: 2, y: 1 },
+                { x: 12, y: 3 },
+                { x: 5, y: 9 },
+                { x: 21, y: 6 },
+                { x: 16, y: 14 },
+                { x: 8, y: 16 },
+                { x: 25, y: 4 },
+                { x: 26, y: 12 },
+                { x: 18, y: 18 }
+            );
+            player.x = tileSize * 2;
+            player.y = tileSize * 1;
+            player.stamina = player.maxStamina;
+            pigman.x = tileSize * 28;
+            pigman.y = tileSize * 18;
+            pigman.path = [];
+            pigman.jitterTimer = 0;
+            peanutsCollected = 0;
+            keys.clear();
+            updatePeanutHud();
+            ambience.currentTime = 0;
+            ambience.play().catch(() => {});
+            gameRunning = true;
+            lastTime = performance.now();
+            requestAnimationFrame(loop);
+        }
+
+        function checkCollisions() {
+            if (distance(player.x, player.y, pigman.x, pigman.y) < player.radius + pigman.radius - 4) {
+                triggerLose();
+            }
+        }
+
+        function drawMaze() {
+            ctx.fillStyle = floorColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = wallsColor;
+            for (let y = 0; y < rows; y++) {
+                for (let x = 0; x < cols; x++) {
+                    if (maze[y][x] === 1) {
+                        ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+                    }
+                }
+            }
+        }
+
+        function drawPeanuts() {
+            for (const peanut of peanuts) {
+                const px = peanut.x * tileSize + tileSize / 2;
+                const py = peanut.y * tileSize + tileSize / 2;
+                const gradient = ctx.createRadialGradient(px, py, 2, px, py, tileSize / 2);
+                gradient.addColorStop(0, '#fff3d8');
+                gradient.addColorStop(0.4, varColor(peanutGlow));
+                gradient.addColorStop(1, 'rgba(247, 208, 138, 0)');
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(px, py, tileSize / 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = varColor('--peanut');
+                ctx.beginPath();
+                ctx.ellipse(px, py, 7, 11, Math.PI / 8, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function varColor(value) {
+            if (value.startsWith('--')) {
+                return getComputedStyle(document.documentElement).getPropertyValue(value).trim();
+            }
+            return value;
+        }
+
+        function drawPigman() {
+            ctx.fillStyle = pigColor;
+            ctx.beginPath();
+            ctx.arc(pigman.x, pigman.y, pigman.radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            const eyeOffset = 6;
+            ctx.fillStyle = pigEye;
+            ctx.beginPath();
+            ctx.arc(pigman.x - eyeOffset, pigman.y - 4, 3, 0, Math.PI * 2);
+            ctx.arc(pigman.x + eyeOffset, pigman.y - 4, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#2a1212';
+            ctx.beginPath();
+            ctx.arc(pigman.x, pigman.y + 4, 6, 0, Math.PI);
+            ctx.fill();
+        }
+
+        function drawPlayer() {
+            ctx.fillStyle = playerColor;
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function applyDarkness() {
+            ctx.save();
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.88)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const radius = tileSize * 5.8;
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.globalCompositeOperation = 'lighter';
+            const glow = ctx.createRadialGradient(player.x, player.y, 0, player.x, player.y, radius);
+            glow.addColorStop(0, 'rgba(90, 208, 255, 0.35)');
+            glow.addColorStop(1, 'rgba(90, 208, 255, 0)');
+            ctx.fillStyle = glow;
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function loop(timestamp) {
+            if (!gameRunning) return;
+            const dt = Math.min((timestamp - lastTime) / 1000, 0.1);
+            lastTime = timestamp;
+
+            handleInput(dt);
+            updatePigman(dt);
+            checkPeanutCollection();
+            checkCollisions();
+
+            drawMaze();
+            drawPeanuts();
+            drawPigman();
+            drawPlayer();
+            applyDarkness();
+
+            requestAnimationFrame(loop);
+        }
+
+        function startGame() {
+            overlay.classList.remove('active');
+            ambience.volume = 0.25;
+            ambience.play().catch(() => {});
+            lastTime = performance.now();
+            gameRunning = true;
+            requestAnimationFrame(loop);
+        }
+
+        startButton.addEventListener('click', () => {
+            startGame();
+        });
+
+        window.addEventListener('keydown', (event) => {
+            keys.set(event.code, true);
+            if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(event.code)) {
+                event.preventDefault();
+            }
+        });
+
+        window.addEventListener('keyup', (event) => {
+            keys.set(event.code, false);
+        });
+
+        updatePeanutHud();
+    </script>
 </body>
 </html>
