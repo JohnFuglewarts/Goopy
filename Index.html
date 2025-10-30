@@ -3,687 +3,939 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Maze of the Pigman</title>
+    <title>Maze of the Boar King</title>
     <style>
-        :root {
-            color-scheme: dark;
-            --bg: #050507;
-            --fg: #e9e7ff;
-            --accent: #ff7b54;
-            --accent-dark: #c14424;
-            --danger: #ff3864;
-            --success: #3cffc7;
-            --peanut: #f7d08a;
-        }
-
         * {
             box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            user-select: none;
         }
 
+        html,
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: radial-gradient(ellipse at top, #111425 0%, #040306 70%);
-            color: var(--fg);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            width: 100%;
+            height: 100%;
+            margin: 0;
             overflow: hidden;
-        }
-
-        #game-container {
-            position: relative;
-            display: inline-block;
-            border-radius: 18px;
-            background: rgba(10, 10, 16, 0.85);
-            backdrop-filter: blur(4px);
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.75);
-            overflow: hidden;
+            font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #000;
+            color: #f0f0f5;
         }
 
         canvas {
             display: block;
-            background: #050509;
         }
 
-        .hud {
-            position: absolute;
-            top: 16px;
-            left: 16px;
-            right: 16px;
+        #hud {
+            position: fixed;
+            top: 20px;
+            left: 20px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
+            z-index: 10;
             pointer-events: none;
         }
 
-        .hud-line {
-            display: flex;
-            justify-content: space-between;
-            font-size: 1rem;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+        #peanut-counter {
+            font-size: 1.1rem;
+            text-shadow: 0 0 8px rgba(0, 0, 0, 0.8);
         }
 
-        .stamina-container {
-            height: 12px;
-            border-radius: 999px;
-            background: rgba(255, 255, 255, 0.08);
+        #stamina-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        #stamina-label {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12rem;
+            opacity: 0.75;
+        }
+
+        #stamina-bar {
+            width: 220px;
+            height: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            background: rgba(255, 255, 255, 0.05);
             overflow: hidden;
-            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.65);
+            border-radius: 12px;
         }
 
         #stamina-fill {
-            height: 100%;
             width: 100%;
-            background: linear-gradient(90deg, var(--accent) 0%, var(--accent-dark) 100%);
-            transition: width 80ms linear, background 200ms ease;
+            height: 100%;
+            background: linear-gradient(90deg, #ffc46f, #ff6f3c);
+            transition: width 0.12s ease-out;
         }
 
-        #message-overlay {
-            position: absolute;
+        #reticle {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: 16px;
+            height: 16px;
+            margin: -8px 0 0 -8px;
+            display: grid;
+            place-items: center;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 22px;
+            pointer-events: none;
+            z-index: 5;
+            text-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+        }
+
+        #overlay,
+        #end-overlay {
+            position: fixed;
             inset: 0;
             display: flex;
             flex-direction: column;
-            align-items: center;
             justify-content: center;
-            gap: 12px;
-            background: rgba(0, 0, 0, 0.85);
-            color: var(--fg);
-            padding: 24px;
-            text-align: center;
+            align-items: center;
+            padding: 40px;
+            background: radial-gradient(circle at center, rgba(12, 12, 16, 0.92) 0%, rgba(2, 2, 8, 0.96) 55%, rgba(0, 0, 0, 0.98) 100%);
+            backdrop-filter: blur(2px);
+            z-index: 20;
+            color: #f6f5ff;
+            transition: opacity 0.35s ease;
+        }
+
+        #overlay.hidden,
+        #end-overlay.hidden {
             opacity: 0;
+            visibility: hidden;
             pointer-events: none;
-            transition: opacity 200ms ease;
         }
 
-        #message-overlay.active {
-            opacity: 1;
-            pointer-events: all;
+        #overlay h1,
+        #end-overlay h1 {
+            font-size: clamp(2.4rem, 3vw, 4rem);
+            margin-bottom: 18px;
+            letter-spacing: 0.16rem;
+            text-transform: uppercase;
         }
 
-        #message-overlay h2 {
-            font-size: clamp(1.8rem, 3vw, 2.6rem);
-            letter-spacing: 0.18em;
-        }
-
-        #message-overlay p {
-            max-width: 420px;
+        #overlay p,
+        #end-overlay p {
+            max-width: 680px;
             line-height: 1.6;
-            opacity: 0.85;
+            text-align: center;
+            margin: 0 auto 16px;
+            font-size: 1.05rem;
+            color: rgba(240, 240, 255, 0.85);
         }
 
-        #message-overlay button {
-            margin-top: 18px;
-            padding: 12px 28px;
-            border-radius: 999px;
-            border: none;
-            letter-spacing: 0.12em;
+        .overlay-list {
+            text-align: left;
+            font-size: 0.95rem;
+            margin: 16px 0 28px;
+            padding: 18px 24px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+        }
+
+        .overlay-list strong {
+            color: #ffd07b;
+        }
+
+        button.cta {
+            padding: 14px 42px;
+            font-size: 1rem;
             text-transform: uppercase;
+            letter-spacing: 0.18rem;
             font-weight: 600;
-            background: var(--accent);
-            color: #0e0d11;
+            color: #020207;
+            background: linear-gradient(135deg, #ffd07b, #ff8040);
+            border: none;
+            border-radius: 999px;
             cursor: pointer;
-            transition: transform 120ms ease, box-shadow 120ms ease;
+            box-shadow: 0 15px 35px rgba(255, 128, 64, 0.35);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
-        #message-overlay button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 18px rgba(255, 123, 84, 0.35);
+        button.cta:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 20px 45px rgba(255, 128, 64, 0.45);
         }
 
-        #instructions {
-            position: absolute;
-            bottom: 16px;
-            left: 16px;
-            right: 16px;
-            padding: 14px 18px;
-            border-radius: 12px;
-            background: rgba(0, 0, 0, 0.45);
-            font-size: 0.9rem;
-            line-height: 1.4;
-            letter-spacing: 0.03em;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
+        button.cta:active {
+            transform: translateY(0) scale(0.99);
         }
 
-        #instructions strong {
-            color: var(--accent);
+        #end-overlay.failure {
+            background: radial-gradient(circle at center, rgba(120, 0, 0, 0.94) 0%, rgba(12, 0, 0, 0.95) 65%, rgba(0, 0, 0, 0.98) 100%);
+            animation: pulse 1.2s infinite alternate;
         }
 
-        #jumpscare {
-            position: absolute;
-            inset: 0;
-            background: radial-gradient(circle at center, rgba(255, 56, 100, 0.2) 0%, rgba(0, 0, 0, 0.95) 60%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: clamp(2.6rem, 5vw, 4rem);
+        @keyframes pulse {
+            from {
+                filter: saturate(1) brightness(1);
+            }
+            to {
+                filter: saturate(1.35) brightness(1.15);
+            }
+        }
+
+        #tips {
+            font-size: 0.8rem;
+            letter-spacing: 0.12rem;
             text-transform: uppercase;
-            letter-spacing: 0.3em;
-            color: var(--danger);
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 150ms ease;
+            opacity: 0.55;
+            margin-top: 32px;
         }
 
-        #jumpscare.active {
-            opacity: 1;
-            animation: shake 480ms ease-in-out 1;
-        }
-
-        @keyframes shake {
-            0%, 100% { transform: translate(0, 0); }
-            20% { transform: translate(-12px, 8px); }
-            40% { transform: translate(10px, -6px); }
-            60% { transform: translate(-8px, -4px); }
-            80% { transform: translate(6px, 10px); }
-        }
-
-        @media (max-width: 1024px) {
-            body {
-                padding: 20px;
+        @media (max-width: 640px) {
+            #hud {
+                left: 16px;
+                top: 16px;
             }
 
-            canvas {
-                width: min(92vw, 640px);
-                height: auto;
+            #stamina-bar {
+                width: 180px;
+            }
+
+            #overlay,
+            #end-overlay {
+                padding: 30px;
+            }
+
+            button.cta {
+                width: 100%;
             }
         }
     </style>
 </head>
 <body>
-    <div id="game-container">
-        <canvas id="gameCanvas" width="960" height="640"></canvas>
-        <div class="hud">
-            <div class="hud-line"><span>Peanuts</span><span id="peanut-count">0 / 9</span></div>
-            <div class="hud-line"><span>Stamina</span></div>
-            <div class="stamina-container"><div id="stamina-fill"></div></div>
+    <div id="hud">
+        <div id="peanut-counter">Peanuts: 0 / 0</div>
+        <div id="stamina-wrapper">
+            <span id="stamina-label">Hold Shift to Run</span>
+            <div id="stamina-bar">
+                <div id="stamina-fill"></div>
+            </div>
         </div>
-        <div id="instructions">
-            <strong>Escapes are rare.</strong>
-            <span>WASD / Arrow Keys to move, hold Shift to sprint. Collect nine glowing peanuts before the Pigman finds you. Vision is limited—stay alert.</span>
-            <span>Tip: Sprint wisely. Stamina takes time to recover. You're never alone in the dark.</span>
-        </div>
-        <div id="message-overlay" class="active">
-            <h2>Maze of the Pigman</h2>
-            <p>You wake up in a silent maze with something huge and hungry tracking your every step. Gather all nine peanuts to bait the exit before the Pigman reaches you.</p>
-            <button id="start-button">Enter the Maze</button>
-        </div>
-        <div id="jumpscare">RUN</div>
     </div>
+    <div id="reticle">+</div>
 
-    <audio id="ambience" loop preload="auto">
-        <source src="https://cdn.jsdelivr.net/gh/naptha/tiny-sfx/hum.ogg" type="audio/ogg">
-    </audio>
-    <audio id="peanut-sfx" preload="auto">
-        <source src="https://cdn.jsdelivr.net/gh/naptha/tiny-sfx/blip1.ogg" type="audio/ogg">
-    </audio>
-    <audio id="lose-sfx" preload="auto">
-        <source src="https://cdn.jsdelivr.net/gh/naptha/tiny-sfx/monster1.ogg" type="audio/ogg">
-    </audio>
-    <audio id="win-sfx" preload="auto">
-        <source src="https://cdn.jsdelivr.net/gh/naptha/tiny-sfx/success1.ogg" type="audio/ogg">
-    </audio>
+    <section id="overlay">
+        <h1>Maze of the Boar King</h1>
+        <p>
+            You came looking for treasure and found a starving pig-man instead. The maze is dark and his footsteps are close.
+            Scavenge <strong>all nine peanuts</strong> and reach safety before he catches you.
+        </p>
+        <div class="overlay-list">
+            <p><strong>Controls</strong></p>
+            <ul>
+                <li>Move: <strong>W A S D</strong></li>
+                <li>Run: <strong>Hold Shift</strong> (watch your stamina!)</li>
+                <li>Look: <strong>Mouse</strong></li>
+                <li>Collect: <strong>Walk into peanuts</strong></li>
+            </ul>
+        </div>
+        <button id="startButton" class="cta">Enter the Maze</button>
+        <div id="tips">Headphones recommended • Dark room encouraged</div>
+    </section>
 
-    <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const peanutCountEl = document.getElementById('peanut-count');
-        const staminaFill = document.getElementById('stamina-fill');
-        const overlay = document.getElementById('message-overlay');
-        const startButton = document.getElementById('start-button');
-        const jumpscare = document.getElementById('jumpscare');
-        const ambience = document.getElementById('ambience');
-        const peanutSfx = document.getElementById('peanut-sfx');
-        const loseSfx = document.getElementById('lose-sfx');
-        const winSfx = document.getElementById('win-sfx');
+    <section id="end-overlay" class="hidden">
+        <h1 id="end-title">You Escaped</h1>
+        <p id="end-message">Nine peanuts, nine chances, and you made it out alive.</p>
+        <button id="restartButton" class="cta">Try Again</button>
+    </section>
 
-        const tileSize = 32;
-        const cols = canvas.width / tileSize;
-        const rows = canvas.height / tileSize;
+    <script type="module">
+        import * as THREE from "https://unpkg.com/three@0.159.0/build/three.module.js";
+        import { PointerLockControls } from "https://unpkg.com/three@0.159.0/examples/jsm/controls/PointerLockControls.js";
 
-        const maze = [
-            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1],
-            [1,0,1,1,1,1,1,1,1,0,1,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,1,1,0,1],
-            [1,0,1,0,0,0,0,0,1,0,1,0,1,0,1,0,1,0,0,0,1,0,1,0,0,0,0,1,0,1],
-            [1,0,1,0,1,1,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,1,1,1,0,1,0,1],
-            [1,0,1,0,1,0,0,0,1,0,1,0,1,0,0,0,1,0,1,0,1,0,0,0,0,1,0,1,0,1],
-            [1,0,1,0,1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,0,1,1,1,1,0,1,0,1,0,1],
-            [1,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,1,0,1,0,0,0,0,1,0,1,0,1,0,1],
-            [1,0,1,1,1,0,1,0,1,1,1,1,1,0,1,0,1,0,1,1,1,1,0,1,0,1,0,1,0,1],
-            [1,0,0,0,1,0,1,0,0,0,0,0,1,0,1,0,0,0,0,0,0,1,0,1,0,1,0,0,0,1],
-            [1,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,1,1,1,1,0,1,0,1,0,1,1,1,0,1],
-            [1,0,0,0,1,0,0,0,0,0,1,0,1,0,0,0,0,0,0,1,0,1,0,0,0,0,0,1,0,1],
-            [1,0,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,0,1,0,1,1,1,1,1,0,1,0,1],
-            [1,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,1,0,1,0,1],
-            [1,0,1,0,1,1,1,0,1,1,1,1,1,1,1,1,0,1,0,1,1,1,1,1,0,1,0,1,0,1],
-            [1,0,0,0,1,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,1,0,1,0,1],
-            [1,1,1,0,1,0,1,1,1,0,1,1,1,1,0,1,1,1,1,1,1,1,0,1,0,1,0,1,0,1],
-            [1,0,0,0,1,0,1,0,0,0,1,0,0,1,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,1],
-            [1,0,1,1,1,0,1,0,1,1,1,0,1,1,0,1,1,1,1,1,0,1,0,1,1,1,1,1,0,1],
-            [1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        const mazeLayout = [
+            "111111111111111",
+            "1S00000010000P1",
+            "101110101011101",
+            "1P0010100000101",
+            "101010111110101",
+            "101010000010001",
+            "101011111010101",
+            "1P00010001010P1",
+            "111010101011101",
+            "1P00100000000E1",
+            "101011111110101",
+            "1000100000100P1",
+            "101110101010101",
+            "1P00000010000P1",
+            "111111111111111"
         ];
 
-        const peanuts = [
-            { x: 2, y: 1 },
-            { x: 12, y: 3 },
-            { x: 5, y: 9 },
-            { x: 21, y: 6 },
-            { x: 16, y: 14 },
-            { x: 8, y: 16 },
-            { x: 25, y: 4 },
-            { x: 26, y: 12 },
-            { x: 18, y: 18 }
-        ];
+        const cellSize = 8;
+        const wallHeight = 10;
+        const playerHeight = 4;
+        const walkSpeed = 7;
+        const runSpeed = 12;
+        const staminaDrainRate = 0.45;
+        const staminaRecoveryRate = 0.3;
+        const enemySpeed = 6.5;
+        const pathRefreshInterval = 0.45;
 
-        const wallsColor = '#1a1a24';
-        const floorColor = '#14131a';
-        const peanutGlow = 'rgba(247, 208, 138, 0.78)';
-        const pigColor = '#9c4a4a';
-        const pigEye = '#ffe5e5';
-        const playerColor = '#5ad0ff';
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x020206);
+        scene.fog = new THREE.FogExp2(0x000000, 0.035);
 
-        const keys = new Map();
-        let lastTime = 0;
-        let gameRunning = false;
+        const camera = new THREE.PerspectiveCamera(74, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.domElement.tabIndex = 0;
+    renderer.domElement.style.outline = "none";
+    document.body.appendChild(renderer.domElement);
+
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    const controls = new PointerLockControls(camera, renderer.domElement);
+        const player = controls.getObject();
+        scene.add(player);
+
+        const ambient = new THREE.AmbientLight(0x1a1a31, 0.35);
+        scene.add(ambient);
+
+        const moonLight = new THREE.DirectionalLight(0x9aaaff, 0.5);
+        moonLight.position.set(40, 80, 25);
+        moonLight.castShadow = true;
+        moonLight.shadow.mapSize.set(1024, 1024);
+        moonLight.shadow.camera.near = 10;
+        moonLight.shadow.camera.far = 180;
+        moonLight.shadow.camera.left = -120;
+        moonLight.shadow.camera.right = 120;
+        moonLight.shadow.camera.top = 120;
+        moonLight.shadow.camera.bottom = -120;
+        scene.add(moonLight);
+
+        const playerLight = new THREE.PointLight(0xffa96c, 1.7, 36, 2.2);
+        playerLight.castShadow = false;
+        scene.add(playerLight);
+
+        const mazeRows = mazeLayout.length;
+        const mazeCols = mazeLayout[0].length;
+        const halfWidth = (mazeCols - 1) * cellSize * 0.5;
+        const halfDepth = (mazeRows - 1) * cellSize * 0.5;
+
+        const floorGeometry = new THREE.PlaneGeometry(mazeCols * cellSize, mazeRows * cellSize);
+        const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x0c0c11, roughness: 0.9, metalness: 0.05 });
+        const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        const wallGeometry = new THREE.BoxGeometry(cellSize, wallHeight, cellSize);
+        const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x1a1a24, roughness: 1, metalness: 0.02 });
+
+        const peanuts = [];
+        const wallGroup = new THREE.Group();
+        const peanutGroup = new THREE.Group();
+        scene.add(wallGroup);
+        scene.add(peanutGroup);
+
+        let playerCell = { row: 1, col: 1 };
+        let enemyCell = { row: mazeRows - 2, col: mazeCols - 2 };
+
+        const peanutGeometry = new THREE.SphereGeometry(1.1, 14, 10);
+        const peanutMaterial = new THREE.MeshStandardMaterial({ color: 0xffd27f, emissive: 0x331a00, emissiveIntensity: 0.35 });
+
+        const peanutGlowGeometry = new THREE.SphereGeometry(1.6, 12, 8);
+        const peanutGlowMaterial = new THREE.MeshBasicMaterial({ color: 0xffbb66, transparent: true, opacity: 0.18 });
+
+        const cellToWorld = (row, col, elevate = 0) => {
+            return new THREE.Vector3(
+                col * cellSize - halfWidth,
+                elevate,
+                row * cellSize - halfDepth
+            );
+        };
+
+        const worldToCell = (x, z) => {
+            const col = Math.round((x + halfWidth) / cellSize);
+            const row = Math.round((z + halfDepth) / cellSize);
+            return { row, col };
+        };
+
+        const isWalkable = (row, col) => {
+            if (row < 0 || row >= mazeRows || col < 0 || col >= mazeCols) {
+                return false;
+            }
+            const token = mazeLayout[row][col];
+            return token !== "1";
+        };
+
+        for (let row = 0; row < mazeRows; row++) {
+            for (let col = 0; col < mazeCols; col++) {
+                const token = mazeLayout[row][col];
+                const center = cellToWorld(row, col, 0);
+
+                if (token === "1") {
+                    const wall = new THREE.Mesh(wallGeometry, wallMaterial);
+                    wall.castShadow = true;
+                    wall.receiveShadow = true;
+                    wall.position.set(center.x, wallHeight / 2, center.z);
+                    wallGroup.add(wall);
+                }
+
+                if (token === "S") {
+                    playerCell = { row, col };
+                }
+
+                if (token === "E") {
+                    enemyCell = { row, col };
+                }
+
+                if (token === "P") {
+                    const collectibleId = `${row}-${col}`;
+                    const peanut = new THREE.Mesh(peanutGeometry, peanutMaterial);
+                    const glow = new THREE.Mesh(peanutGlowGeometry, peanutGlowMaterial);
+                    peanut.position.set(center.x, 1.2, center.z);
+                    glow.position.copy(peanut.position);
+                    peanut.userData.collectibleId = collectibleId;
+                    glow.userData.collectibleId = collectibleId;
+                    peanuts.push(peanut);
+                    peanutGroup.add(peanut);
+                    peanutGroup.add(glow);
+
+                    const light = new THREE.PointLight(0xffa958, 0.5, 18, 2.8);
+                    light.position.set(center.x, 4, center.z);
+                    scene.add(light);
+                }
+            }
+        }
+
+        const totalPeanuts = peanuts.length;
+        const playerStart = cellToWorld(playerCell.row, playerCell.col, playerHeight);
+        player.position.copy(playerStart);
+        camera.position.set(0, 0, 0);
+
+        const enemy = new THREE.Group();
+        const createPigMan = () => {
+            const skinMaterial = new THREE.MeshStandardMaterial({ color: 0xff9b8d, roughness: 0.6, metalness: 0.1 });
+            const clothMaterial = new THREE.MeshStandardMaterial({ color: 0x3a1d1f, roughness: 1 });
+            const tuskMaterial = new THREE.MeshStandardMaterial({ color: 0xf8ede0, roughness: 0.3, metalness: 0.05 });
+
+            const torso = new THREE.Mesh(new THREE.SphereGeometry(3.2, 22, 18), clothMaterial);
+            torso.position.y = 4.2;
+            torso.castShadow = true;
+            enemy.add(torso);
+
+            const head = new THREE.Mesh(new THREE.SphereGeometry(2.5, 24, 20), skinMaterial);
+            head.position.y = 7.3;
+            head.castShadow = true;
+            enemy.add(head);
+
+            const snout = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.4, 1.8, 16), skinMaterial);
+            snout.rotation.z = Math.PI / 2;
+            snout.position.set(2.2, 7.1, 0);
+            enemy.add(snout);
+
+            const nose = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.2, 10, 22), new THREE.MeshStandardMaterial({ color: 0xcc6870, roughness: 0.2 }));
+            nose.rotation.y = Math.PI / 2;
+            nose.position.set(3.1, 7.1, 0);
+            enemy.add(nose);
+
+            const eyeGeometry = new THREE.SphereGeometry(0.35, 8, 8);
+            const eyeMaterial = new THREE.MeshStandardMaterial({ color: 0x330000, emissive: 0x880000, emissiveIntensity: 0.6 });
+            const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+            leftEye.position.set(1.7, 7.9, 0.7);
+            const rightEye = leftEye.clone();
+            rightEye.position.z = -0.7;
+            enemy.add(leftEye, rightEye);
+
+            const earGeometry = new THREE.ConeGeometry(1.1, 2.1, 10);
+            const leftEar = new THREE.Mesh(earGeometry, skinMaterial);
+            leftEar.position.set(1.2, 8.9, 1.3);
+            leftEar.rotation.z = -0.4;
+            const rightEar = leftEar.clone();
+            rightEar.position.z = -1.3;
+            rightEar.rotation.z = 0.4;
+            enemy.add(leftEar, rightEar);
+
+            const tuskGeometry = new THREE.ConeGeometry(0.35, 1.4, 8);
+            const leftTusk = new THREE.Mesh(tuskGeometry, tuskMaterial);
+            leftTusk.position.set(2.7, 6.4, 0.9);
+            leftTusk.rotation.set(0, 0, Math.PI / 2.4);
+            const rightTusk = leftTusk.clone();
+            rightTusk.position.z = -0.9;
+            rightTusk.rotation.z = -Math.PI / 2.4;
+            enemy.add(leftTusk, rightTusk);
+
+            const limbGeometry = new THREE.CylinderGeometry(0.8, 1.1, 4.6, 10);
+            const leftLeg = new THREE.Mesh(limbGeometry, clothMaterial);
+            leftLeg.position.set(1, 1.8, 1.2);
+            const rightLeg = leftLeg.clone();
+            rightLeg.position.z = -1.2;
+            enemy.add(leftLeg, rightLeg);
+
+            const armGeometry = new THREE.CylinderGeometry(0.7, 0.9, 4.2, 10);
+            const leftArm = new THREE.Mesh(armGeometry, skinMaterial);
+            leftArm.position.set(-2.6, 5.2, 1.6);
+            leftArm.rotation.z = Math.PI / 4.2;
+            const rightArm = leftArm.clone();
+            rightArm.position.z = -1.6;
+            rightArm.rotation.z = -Math.PI / 4.2;
+            enemy.add(leftArm, rightArm);
+
+            const weapon = new THREE.Mesh(new THREE.BoxGeometry(0.4, 6.5, 0.4), new THREE.MeshStandardMaterial({ color: 0x2b150f, roughness: 0.9 }));
+            weapon.position.set(-3.9, 3.8, 1.6);
+            enemy.add(weapon);
+
+            const cleaver = new THREE.Mesh(new THREE.BoxGeometry(2.2, 2.6, 0.2), new THREE.MeshStandardMaterial({ color: 0xe0e0e0, roughness: 0.2, metalness: 0.8 }));
+            cleaver.position.set(-3.9, 1.5, 1.6);
+            cleaver.rotation.z = Math.PI / 8;
+            enemy.add(cleaver);
+
+            const enemyLight = new THREE.PointLight(0xff3c2a, 0.8, 22, 2.1);
+            enemyLight.position.set(0, 6.2, 0);
+            enemy.add(enemyLight);
+        };
+
+        createPigMan();
+        scene.add(enemy);
+        enemy.position.copy(cellToWorld(enemyCell.row, enemyCell.col, 2.2));
+
+        const velocity = new THREE.Vector3();
+        const direction = new THREE.Vector3();
+        const forwardVector = new THREE.Vector3();
+        const sideVector = new THREE.Vector3();
+
+        const keyState = {
+            forward: false,
+            backward: false,
+            left: false,
+            right: false,
+            run: false
+        };
+
+        let stamina = 1;
         let peanutsCollected = 0;
+        let gameOver = false;
 
-        const player = {
-            x: tileSize * 2,
-            y: tileSize * 1,
-            radius: 12,
-            speed: 120,
-            sprintMultiplier: 1.85,
-            stamina: 100,
-            maxStamina: 100,
-            staminaDrain: 38,
-            staminaRegen: 22
+        const peanutCounter = document.getElementById("peanut-counter");
+        const staminaFill = document.getElementById("stamina-fill");
+        const overlay = document.getElementById("overlay");
+        const startButton = document.getElementById("startButton");
+        const endOverlay = document.getElementById("end-overlay");
+        const endTitle = document.getElementById("end-title");
+        const endMessage = document.getElementById("end-message");
+    const restartButton = document.getElementById("restartButton");
+    const reticle = document.getElementById("reticle");
+    const tips = document.getElementById("tips");
+    const defaultTipsText = tips ? tips.textContent : "";
+
+        const updatePeanutUI = () => {
+            peanutCounter.textContent = `Peanuts: ${peanutsCollected} / ${totalPeanuts}`;
         };
 
-        const pigman = {
-            x: tileSize * 28,
-            y: tileSize * 18,
-            radius: 16,
-            baseSpeed: 90,
-            speedIncreasePerPeanut: 6,
-            jitterTimer: 0,
-            path: []
+        const updateStaminaUI = () => {
+            staminaFill.style.width = `${Math.max(stamina, 0) * 100}%`;
+            if (stamina <= 0.1) {
+                staminaFill.style.background = "linear-gradient(90deg, #ff5252, #a50000)";
+            } else {
+                staminaFill.style.background = "linear-gradient(90deg, #ffc46f, #ff6f3c)";
+            }
         };
 
-        const directions = [
-            { x: 1, y: 0 },
-            { x: -1, y: 0 },
-            { x: 0, y: 1 },
-            { x: 0, y: -1 }
-        ];
+        updatePeanutUI();
+        updateStaminaUI();
 
-        function tileIsWalkable(tx, ty) {
-            if (tx < 0 || ty < 0 || tx >= cols || ty >= rows) return false;
-            return maze[ty][tx] === 0;
-        }
+        let audioContext = null;
 
-        function positionToTile(x, y) {
-            return {
-                tx: Math.floor(x / tileSize),
-                ty: Math.floor(y / tileSize)
-            };
-        }
+        const playJumpScareSound = () => {
+            try {
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                const now = audioContext.currentTime;
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                osc.type = "sawtooth";
+                osc.frequency.setValueAtTime(160, now);
+                osc.frequency.exponentialRampToValueAtTime(38, now + 0.45);
+                gain.gain.setValueAtTime(0.001, now);
+                gain.gain.exponentialRampToValueAtTime(0.45, now + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+                osc.connect(gain);
+                gain.connect(audioContext.destination);
+                osc.start(now);
+                osc.stop(now + 0.65);
+            } catch (error) {
+                console.warn("Audio context failed to start", error);
+            }
+        };
 
-        function bfs(start, goal) {
+        const showEndOverlay = (title, message, isFailure = false) => {
+            endTitle.textContent = title;
+            endMessage.textContent = message;
+            endOverlay.classList.toggle("failure", isFailure);
+            endOverlay.classList.remove("hidden");
+            reticle.style.display = "none";
+        };
+
+        const triggerDefeat = () => {
+            if (gameOver) return;
+            gameOver = true;
+            controls.unlock();
+            playJumpScareSound();
+            showEndOverlay("Captured", "The Boar King claimed another midnight feast. Your screams echo through the corridors.", true);
+        };
+
+        const triggerVictory = () => {
+            if (gameOver) return;
+            gameOver = true;
+            controls.unlock();
+            showEndOverlay("You Escaped", "Nine peanuts and nerves of steel. The exit gate opened just long enough for you to slip away.");
+        };
+
+        restartButton.addEventListener("click", () => {
+            window.location.reload();
+        });
+
+        document.addEventListener("keydown", (event) => {
+            switch (event.code) {
+                case "KeyW":
+                case "ArrowUp":
+                    keyState.forward = true;
+                    break;
+                case "KeyS":
+                case "ArrowDown":
+                    keyState.backward = true;
+                    break;
+                case "KeyA":
+                case "ArrowLeft":
+                    keyState.left = true;
+                    break;
+                case "KeyD":
+                case "ArrowRight":
+                    keyState.right = true;
+                    break;
+                case "ShiftLeft":
+                case "ShiftRight":
+                    keyState.run = true;
+                    break;
+                default:
+                    break;
+            }
+        });
+
+        document.addEventListener("keyup", (event) => {
+            switch (event.code) {
+                case "KeyW":
+                case "ArrowUp":
+                    keyState.forward = false;
+                    break;
+                case "KeyS":
+                case "ArrowDown":
+                    keyState.backward = false;
+                    break;
+                case "KeyA":
+                case "ArrowLeft":
+                    keyState.left = false;
+                    break;
+                case "KeyD":
+                case "ArrowRight":
+                    keyState.right = false;
+                    break;
+                case "ShiftLeft":
+                case "ShiftRight":
+                    keyState.run = false;
+                    break;
+                default:
+                    break;
+            }
+        });
+
+        const canMoveTo = (x, z) => {
+            const radius = 2.2;
+            const checkPoints = [
+                [x + radius, z],
+                [x - radius, z],
+                [x, z + radius],
+                [x, z - radius]
+            ];
+            for (const [cx, cz] of checkPoints) {
+                const { row, col } = worldToCell(cx, cz);
+                if (!isWalkable(row, col)) {
+                    return false;
+                }
+            }
+            return true;
+        };
+
+        const enemyState = {
+            path: [],
+            lastPathTime: 0
+        };
+
+        const keyForCell = ({ row, col }) => `${row},${col}`;
+
+        const findPath = (start, goal) => {
+            if (start.row === goal.row && start.col === goal.col) {
+                return [start];
+            }
+
             const queue = [start];
-            const visited = new Set([`${start.tx},${start.ty}`]);
-            const cameFrom = {};
+            const visited = new Set([keyForCell(start)]);
+            const parent = new Map();
+            const deltas = [
+                [1, 0],
+                [-1, 0],
+                [0, 1],
+                [0, -1]
+            ];
 
             while (queue.length) {
                 const current = queue.shift();
-                if (current.tx === goal.tx && current.ty === goal.ty) {
-                    const path = [];
-                    let nodeKey = `${goal.tx},${goal.ty}`;
-                    while (nodeKey !== `${start.tx},${start.ty}`) {
-                        const prev = cameFrom[nodeKey];
-                        if (!prev) break;
-                        path.push(prev.dir);
-                        nodeKey = `${prev.pos.tx},${prev.pos.ty}`;
+                for (const [dr, dc] of deltas) {
+                    const nr = current.row + dr;
+                    const nc = current.col + dc;
+                    if (!isWalkable(nr, nc)) continue;
+                    const key = `${nr},${nc}`;
+                    if (visited.has(key)) continue;
+                    visited.add(key);
+                    parent.set(key, current);
+                    if (nr === goal.row && nc === goal.col) {
+                        const path = [{ row: nr, col: nc }];
+                        let cursor = { row: nr, col: nc };
+                        while (cursor.row !== start.row || cursor.col !== start.col) {
+                            const prev = parent.get(keyForCell(cursor));
+                            path.unshift(prev);
+                            cursor = prev;
+                        }
+                        return path;
                     }
-                    return path.reverse();
-                }
-
-                for (const dir of directions) {
-                    const nxt = { tx: current.tx + dir.x, ty: current.ty + dir.y };
-                    const key = `${nxt.tx},${nxt.ty}`;
-                    if (!visited.has(key) && tileIsWalkable(nxt.tx, nxt.ty)) {
-                        visited.add(key);
-                        cameFrom[key] = { pos: current, dir };
-                        queue.push(nxt);
-                    }
+                    queue.push({ row: nr, col: nc });
                 }
             }
+            return null;
+        };
 
-            return [];
-        }
+        const updateEnemy = (delta) => {
+            enemyState.lastPathTime += delta;
+            const playerPos = player.position;
+            const enemyPos = enemy.position;
+            const playerGrid = worldToCell(playerPos.x, playerPos.z);
+            const enemyGrid = worldToCell(enemyPos.x, enemyPos.z);
 
-        function updatePigmanPath() {
-            const pigTile = positionToTile(pigman.x, pigman.y);
-            const playerTile = positionToTile(player.x, player.y);
-            pigman.path = bfs(pigTile, playerTile);
-        }
+            const needsPath = !enemyState.path.length || enemyState.lastPathTime > pathRefreshInterval;
 
-        function distance(ax, ay, bx, by) {
-            const dx = ax - bx;
-            const dy = ay - by;
-            return Math.hypot(dx, dy);
-        }
-
-        function handleInput(dt) {
-            let dirX = 0;
-            let dirY = 0;
-
-            if (keys.get('ArrowUp') || keys.get('KeyW')) dirY -= 1;
-            if (keys.get('ArrowDown') || keys.get('KeyS')) dirY += 1;
-            if (keys.get('ArrowLeft') || keys.get('KeyA')) dirX -= 1;
-            if (keys.get('ArrowRight') || keys.get('KeyD')) dirX += 1;
-
-            const sprinting = (keys.get('ShiftLeft') || keys.get('ShiftRight')) && player.stamina > 0;
-            const speedMultiplier = sprinting ? player.sprintMultiplier : 1;
-            const moveSpeed = player.speed * speedMultiplier;
-
-            if (sprinting) {
-                player.stamina = Math.max(0, player.stamina - player.staminaDrain * dt);
-            } else {
-                player.stamina = Math.min(player.maxStamina, player.stamina + player.staminaRegen * dt);
-            }
-
-            staminaFill.style.width = `${(player.stamina / player.maxStamina) * 100}%`;
-            staminaFill.style.background = player.stamina < 18 ? 'linear-gradient(90deg, var(--danger), #5c0f23)' : 'linear-gradient(90deg, var(--accent), var(--accent-dark))';
-
-            if (dirX === 0 && dirY === 0) return;
-
-            const norm = Math.hypot(dirX, dirY) || 1;
-            dirX /= norm;
-            dirY /= norm;
-
-            const nextX = player.x + dirX * moveSpeed * dt;
-            const nextY = player.y + dirY * moveSpeed * dt;
-
-            const currentTile = positionToTile(player.x, player.y);
-            const nextTileX = positionToTile(nextX, player.y);
-            const nextTileY = positionToTile(player.x, nextY);
-            const nextTileDiag = positionToTile(nextX, nextY);
-
-            if (tileIsWalkable(nextTileX.tx, nextTileX.ty) && (currentTile.ty === nextTileX.ty || tileIsWalkable(currentTile.tx, nextTileX.ty))) {
-                player.x = nextX;
-            }
-
-            if (tileIsWalkable(nextTileY.tx, nextTileY.ty) && (currentTile.tx === nextTileY.tx || tileIsWalkable(nextTileY.tx, currentTile.ty))) {
-                player.y = nextY;
-            }
-
-            if (!tileIsWalkable(nextTileDiag.tx, nextTileDiag.ty)) {
-                player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
-                player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
-            }
-        }
-
-        function updatePigman(dt) {
-            pigman.jitterTimer -= dt;
-            if (pigman.jitterTimer <= 0) {
-                updatePigmanPath();
-                pigman.jitterTimer = Math.max(0.3, 1.2 - peanutsCollected * 0.06);
-            }
-
-            const speed = pigman.baseSpeed + pigman.speedIncreasePerPeanut * peanutsCollected;
-            if (pigman.path && pigman.path.length) {
-                const dir = pigman.path[0];
-                const targetX = Math.floor(pigman.x / tileSize) * tileSize + tileSize / 2 + dir.x * tileSize;
-                const targetY = Math.floor(pigman.y / tileSize) * tileSize + tileSize / 2 + dir.y * tileSize;
-                const vecX = targetX - pigman.x;
-                const vecY = targetY - pigman.y;
-                const dist = Math.hypot(vecX, vecY);
-                if (dist < 4) {
-                    pigman.path.shift();
-                } else {
-                    pigman.x += (vecX / dist) * speed * dt;
-                    pigman.y += (vecY / dist) * speed * dt;
+            if (needsPath) {
+                const path = findPath(enemyGrid, playerGrid);
+                if (path && path.length) {
+                    enemyState.path = path;
+                    enemyState.lastPathTime = 0;
                 }
-            } else {
-                const vecX = player.x - pigman.x;
-                const vecY = player.y - pigman.y;
-                const dist = Math.max(1, Math.hypot(vecX, vecY));
-                pigman.x += (vecX / dist) * speed * dt;
-                pigman.y += (vecY / dist) * speed * dt;
             }
-        }
 
-        function checkPeanutCollection() {
-            const { tx, ty } = positionToTile(player.x, player.y);
+            if (!enemyState.path.length) {
+                // fallback: move straight toward player
+                const direct = new THREE.Vector3().subVectors(playerPos, enemyPos);
+                direct.y = 0;
+                const distance = direct.length();
+                if (distance > 0.01) {
+                    direct.normalize();
+                    const step = Math.min(enemySpeed * delta, distance - 0.01);
+                    enemy.position.addScaledVector(direct, step);
+                }
+                enemy.lookAt(playerPos.x, enemy.position.y + 2, playerPos.z);
+                return;
+            }
+
+            if (enemyState.path.length && (enemyGrid.row === enemyState.path[0].row && enemyGrid.col === enemyState.path[0].col) && enemyState.path.length > 1) {
+                enemyState.path.shift();
+            }
+
+            const nextCell = enemyState.path[0];
+            const target = cellToWorld(nextCell.row, nextCell.col, enemy.position.y);
+            const toTarget = new THREE.Vector3().subVectors(target, enemy.position);
+            toTarget.y = 0;
+            const distance = toTarget.length();
+            if (distance > 0.01) {
+                toTarget.normalize();
+                const travel = Math.min(enemySpeed * delta, distance);
+                enemy.position.addScaledVector(toTarget, travel);
+            }
+
+            enemy.lookAt(playerPos.x, enemy.position.y + 2, playerPos.z);
+
+            if (distance < 0.5 && enemyState.path.length > 1) {
+                enemyState.path.shift();
+            }
+        };
+
+        const collectPeanuts = () => {
+            const playerPos = player.position;
             for (let i = peanuts.length - 1; i >= 0; i--) {
-                if (peanuts[i].x === tx && peanuts[i].y === ty) {
-                    peanuts.splice(i, 1);
+                const peanut = peanuts[i];
+                if (!peanut.visible) continue;
+                const dist = peanut.position.distanceTo(playerPos);
+                if (dist < 2.6) {
+                    peanut.visible = false;
+                    peanutGroup.children.forEach((child) => {
+                        if (child !== peanut && child.userData.collectibleId === peanut.userData.collectibleId) {
+                            child.visible = false;
+                        }
+                    });
                     peanutsCollected += 1;
-                    peanutSfx.currentTime = 0;
-                    peanutSfx.play().catch(() => {});
-                    updatePeanutHud();
-                }
-            }
-
-            if (peanutsCollected >= 9) {
-                triggerWin();
-            }
-        }
-
-        function updatePeanutHud() {
-            peanutCountEl.textContent = `${peanutsCollected} / 9`;
-        }
-
-        function triggerLose() {
-            gameRunning = false;
-            loseSfx.currentTime = 0;
-            loseSfx.play().catch(() => {});
-            ambience.pause();
-            jumpscare.classList.add('active');
-            overlay.innerHTML = `
-                <h2>Devoured by the Pigman</h2>
-                <p>Your footsteps stopped echoing. The maze keeps your secrets now.</p>
-                <button id="retry-button">Try Again</button>
-            `;
-            overlay.classList.add('active');
-            const retryButton = document.getElementById('retry-button');
-            retryButton.addEventListener('click', resetGame, { once: true });
-        }
-
-        function triggerWin() {
-            gameRunning = false;
-            winSfx.currentTime = 0;
-            winSfx.play().catch(() => {});
-            ambience.pause();
-            overlay.innerHTML = `
-                <h2>You Escaped</h2>
-                <p>The Pigman roars from behind the sealed gate. The peanuts bought you enough time.</p>
-                <button id="retry-button">Go Back In</button>
-            `;
-            overlay.classList.add('active');
-            const retryButton = document.getElementById('retry-button');
-            retryButton.addEventListener('click', resetGame, { once: true });
-        }
-
-        function resetGame() {
-            overlay.classList.remove('active');
-            jumpscare.classList.remove('active');
-            peanuts.splice(0, peanuts.length, 
-                { x: 2, y: 1 },
-                { x: 12, y: 3 },
-                { x: 5, y: 9 },
-                { x: 21, y: 6 },
-                { x: 16, y: 14 },
-                { x: 8, y: 16 },
-                { x: 25, y: 4 },
-                { x: 26, y: 12 },
-                { x: 18, y: 18 }
-            );
-            player.x = tileSize * 2;
-            player.y = tileSize * 1;
-            player.stamina = player.maxStamina;
-            pigman.x = tileSize * 28;
-            pigman.y = tileSize * 18;
-            pigman.path = [];
-            pigman.jitterTimer = 0;
-            peanutsCollected = 0;
-            keys.clear();
-            updatePeanutHud();
-            ambience.currentTime = 0;
-            ambience.play().catch(() => {});
-            gameRunning = true;
-            lastTime = performance.now();
-            requestAnimationFrame(loop);
-        }
-
-        function checkCollisions() {
-            if (distance(player.x, player.y, pigman.x, pigman.y) < player.radius + pigman.radius - 4) {
-                triggerLose();
-            }
-        }
-
-        function drawMaze() {
-            ctx.fillStyle = floorColor;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            ctx.fillStyle = wallsColor;
-            for (let y = 0; y < rows; y++) {
-                for (let x = 0; x < cols; x++) {
-                    if (maze[y][x] === 1) {
-                        ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+                    updatePeanutUI();
+                    if (peanutsCollected >= totalPeanuts) {
+                        triggerVictory();
                     }
                 }
             }
-        }
+        };
 
-        function drawPeanuts() {
-            for (const peanut of peanuts) {
-                const px = peanut.x * tileSize + tileSize / 2;
-                const py = peanut.y * tileSize + tileSize / 2;
-                const gradient = ctx.createRadialGradient(px, py, 2, px, py, tileSize / 2);
-                gradient.addColorStop(0, '#fff3d8');
-                gradient.addColorStop(0.4, varColor(peanutGlow));
-                gradient.addColorStop(1, 'rgba(247, 208, 138, 0)');
-                ctx.fillStyle = gradient;
-                ctx.beginPath();
-                ctx.arc(px, py, tileSize / 2, 0, Math.PI * 2);
-                ctx.fill();
+        const animatePeanuts = (time) => {
+            const bob = Math.sin(time * 0.002) * 0.3;
+            const rotate = time * 0.0025;
+            peanutGroup.children.forEach((child) => {
+                if (!child.visible) return;
+                child.position.y = (child.geometry.parameters.radius ? 1.2 : child.position.y) + bob;
+                child.rotation.y = rotate;
+            });
+        };
 
-                ctx.fillStyle = varColor('--peanut');
-                ctx.beginPath();
-                ctx.ellipse(px, py, 7, 11, Math.PI / 8, 0, Math.PI * 2);
-                ctx.fill();
+        const clock = new THREE.Clock();
+
+        const animate = () => {
+            requestAnimationFrame(animate);
+            const delta = Math.min(clock.getDelta(), 0.1);
+            const elapsed = clock.elapsedTime * 1000;
+
+            if (!gameOver && controls.isLocked) {
+                velocity.set(0, 0, 0);
+                forwardVector.set(0, 0, -1).applyQuaternion(player.quaternion);
+                forwardVector.y = 0;
+                forwardVector.normalize();
+                sideVector.copy(forwardVector).cross(camera.up).normalize();
+
+                if (keyState.forward) velocity.add(forwardVector);
+                if (keyState.backward) velocity.sub(forwardVector);
+                if (keyState.left) velocity.sub(sideVector);
+                if (keyState.right) velocity.add(sideVector);
+
+                if (velocity.lengthSq() > 0) {
+                    velocity.normalize();
+                    const running = keyState.run && stamina > 0.02;
+                    const speed = running ? runSpeed : walkSpeed;
+                    const moveX = velocity.x * speed * delta;
+                    const moveZ = velocity.z * speed * delta;
+
+                    const nextX = player.position.x + moveX;
+                    const nextZ = player.position.z + moveZ;
+
+                    if (canMoveTo(nextX, player.position.z)) {
+                        player.position.x = nextX;
+                    }
+                    if (canMoveTo(player.position.x, nextZ)) {
+                        player.position.z = nextZ;
+                    }
+
+                    player.position.y = playerHeight;
+
+                    if (running) {
+                        stamina = Math.max(0, stamina - staminaDrainRate * delta);
+                    } else {
+                        stamina = Math.min(1, stamina + staminaRecoveryRate * delta);
+                    }
+                } else {
+                    stamina = Math.min(1, stamina + staminaRecoveryRate * delta * 1.4);
+                }
+
+                updateStaminaUI();
+                playerLight.position.copy(player.position).add(new THREE.Vector3(0, 1.6, 0));
+
+                collectPeanuts();
+                updateEnemy(delta);
+
+                const distanceToEnemy = enemy.position.distanceTo(player.position);
+                if (distanceToEnemy < 2.6) {
+                    triggerDefeat();
+                }
             }
-        }
 
-        function varColor(value) {
-            if (value.startsWith('--')) {
-                return getComputedStyle(document.documentElement).getPropertyValue(value).trim();
-            }
-            return value;
-        }
+            animatePeanuts(performance.now());
+            renderer.render(scene, camera);
+        };
 
-        function drawPigman() {
-            ctx.fillStyle = pigColor;
-            ctx.beginPath();
-            ctx.arc(pigman.x, pigman.y, pigman.radius, 0, Math.PI * 2);
-            ctx.fill();
+        animate();
 
-            const eyeOffset = 6;
-            ctx.fillStyle = pigEye;
-            ctx.beginPath();
-            ctx.arc(pigman.x - eyeOffset, pigman.y - 4, 3, 0, Math.PI * 2);
-            ctx.arc(pigman.x + eyeOffset, pigman.y - 4, 3, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.fillStyle = '#2a1212';
-            ctx.beginPath();
-            ctx.arc(pigman.x, pigman.y + 4, 6, 0, Math.PI);
-            ctx.fill();
-        }
-
-        function drawPlayer() {
-            ctx.fillStyle = playerColor;
-            ctx.beginPath();
-            ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        function applyDarkness() {
-            ctx.save();
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.88)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            const radius = tileSize * 5.8;
-            ctx.globalCompositeOperation = 'destination-out';
-            ctx.beginPath();
-            ctx.arc(player.x, player.y, radius, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.globalCompositeOperation = 'lighter';
-            const glow = ctx.createRadialGradient(player.x, player.y, 0, player.x, player.y, radius);
-            glow.addColorStop(0, 'rgba(90, 208, 255, 0.35)');
-            glow.addColorStop(1, 'rgba(90, 208, 255, 0)');
-            ctx.fillStyle = glow;
-            ctx.beginPath();
-            ctx.arc(player.x, player.y, radius, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-        }
-
-        function loop(timestamp) {
-            if (!gameRunning) return;
-            const dt = Math.min((timestamp - lastTime) / 1000, 0.1);
-            lastTime = timestamp;
-
-            handleInput(dt);
-            updatePigman(dt);
-            checkPeanutCollection();
-            checkCollisions();
-
-            drawMaze();
-            drawPeanuts();
-            drawPigman();
-            drawPlayer();
-            applyDarkness();
-
-            requestAnimationFrame(loop);
-        }
-
-        function startGame() {
-            overlay.classList.remove('active');
-            ambience.volume = 0.25;
-            ambience.play().catch(() => {});
-            lastTime = performance.now();
-            gameRunning = true;
-            requestAnimationFrame(loop);
-        }
-
-        startButton.addEventListener('click', () => {
-            startGame();
+        window.addEventListener("resize", () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        window.addEventListener('keydown', (event) => {
-            keys.set(event.code, true);
-            if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(event.code)) {
-                event.preventDefault();
+        let pointerLockFailed = false;
+
+        const handlePointerLockError = () => {
+            pointerLockFailed = true;
+            if (!gameOver) {
+                overlay.classList.remove("hidden");
+                reticle.style.display = "none";
+                if (tips) {
+                    tips.textContent = "Pointer lock was blocked. Click directly on the game window to capture the mouse.";
+                }
+            }
+        };
+
+        document.addEventListener("pointerlockerror", handlePointerLockError);
+        document.addEventListener("pointerlockchange", () => {
+            const locked = document.pointerLockElement === renderer.domElement;
+            if (locked) {
+                pointerLockFailed = false;
+                if (tips) {
+                    tips.textContent = defaultTipsText;
+                }
+            } else if (!gameOver && pointerLockFailed) {
+                overlay.classList.remove("hidden");
+                reticle.style.display = "none";
+                if (tips) {
+                    tips.textContent = "Pointer lock was blocked. Click directly on the game window to capture the mouse.";
+                }
             }
         });
 
-        window.addEventListener('keyup', (event) => {
-            keys.set(event.code, false);
+        startButton.addEventListener("click", () => {
+            pointerLockFailed = false;
+            renderer.domElement.focus();
+            controls.lock();
         });
 
-        updatePeanutHud();
+        renderer.domElement.addEventListener("click", () => {
+            if (!controls.isLocked && !gameOver) {
+                controls.lock();
+            }
+        });
+
+        controls.addEventListener("lock", () => {
+            overlay.classList.add("hidden");
+            reticle.style.display = "grid";
+            pointerLockFailed = false;
+            if (tips) {
+                tips.textContent = defaultTipsText;
+            }
+        });
+
+        controls.addEventListener("unlock", () => {
+            if (!gameOver) {
+                overlay.classList.remove("hidden");
+                reticle.style.display = "none";
+                if (tips) {
+                    tips.textContent = defaultTipsText;
+                }
+            }
+        });
+
+        document.addEventListener("visibilitychange", () => {
+            if (document.hidden && controls.isLocked) {
+                controls.unlock();
+            }
+        });
     </script>
 </body>
 </html>
